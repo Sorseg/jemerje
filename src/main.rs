@@ -1,19 +1,22 @@
-use bevy::{color::palettes::css::GOLDENROD, prelude::*, time::common_conditions::on_timer};
+use bevy::{color::palettes::css::GOLDENROD, prelude::*};
 use bevy_tween::{interpolate::translation, prelude::*};
 use rand::random;
 use std::f32::consts::TAU;
 
 static ICONS: &str = include_str!("../assets/icons.txt");
 
-const BOARD_WIDTH: u32 = 10;
-const BOARD_HEIGHT: u32 = 10;
-const SPRITE_SIZE_PX: u32 = 32; // ne ponel? screen size / board - height
+const BOARD_WIDTH: i32 = 16;
+const BOARD_HEIGHT: i32 = 9;
+const SPRITE_SIZE_PX: i32 = 32;
+
+const PADDING: i32 = 4;
+
+const CELL_SIZE: i32 = SPRITE_SIZE_PX + PADDING;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins((DefaultPlugins, DefaultTweenPlugins))
-        .add_systems(Startup, setup)
-        .add_systems(Update, shake_cam.run_if(on_timer(Duration::from_secs(1))))
+    app.add_plugins((DefaultPlugins, DefaultTweenPlugins)).add_systems(Startup, setup)
+        // .add_systems(Update, shake_cam.run_if(on_timer(Duration::from_secs(1))))
         .run();
 }
 
@@ -23,14 +26,21 @@ struct MainCam;
 fn setup(mut commands: Commands) {
     commands.spawn((MainCam, Camera2dBundle::default()));
 
-    commands.spawn(SpriteBundle {
-        sprite: Sprite {
-            custom_size: Some(Vec2::new(100.0, 100.0)),
-            color: GOLDENROD.into(),
-            ..default()
-        },
-        ..default()
-    });
+    // spawn width by height board of sprites
+    for x in -BOARD_WIDTH/2..BOARD_WIDTH/2 {
+        for y in -BOARD_HEIGHT/2..BOARD_HEIGHT/2 {
+            commands.spawn(SpriteBundle {
+                sprite: Sprite
+                    color: GOLDENROD.into(), // todo: change to sprite
+                    ..default()
+                },
+                transform: Transform::from_xyz((x * CELL_SIZE) as f32,
+                                               (y * CELL_SIZE) as f32,
+                                               0f32),
+                ..default()
+            });
+        }
+    }
 }
 
 fn shake_cam(mut commands: Commands, cam: Query<Entity, With<MainCam>>) {
