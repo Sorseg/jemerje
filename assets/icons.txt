@@ -1,5 +1,4 @@
 01_dish.png
-02_dish_2.png
 03_dish_pile.png
 04_bowl.png
 05_apple_pie.png
