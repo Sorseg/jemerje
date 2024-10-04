@@ -3,11 +3,11 @@ use crate::MergeLine;
 pub struct MergeItemDescriptor {
     tier: usize,
     merge_line: MergeLine,
-    path: &'static str,
+    pub(crate) path: &'static str,
 } 
 
-pub fn sweet_merge_line() -> &'static [&'static str] {
-    let paths = &[
+pub fn sweet_merge_line() -> Vec<MergeItemDescriptor> {
+    let sweet_paths = [
         "26_chocolate.png",
         "30_chocolatecake.png",
         "34_donut.png",
@@ -20,19 +20,22 @@ pub fn sweet_merge_line() -> &'static [&'static str] {
         "90_strawberrycake.png",
         "79_pancakes.png",
     ];
-    /*
-        let descriptors: Vec<MergeItemDescriptor> = paths.iter().map(|&path| MergeItemDescriptor {
-            tier: 1, // Assuming some default tier value
-            merge_line: SWEET,
-            path: path.to_string(),
-        }).collect();
-    }
-     */
-    paths
+
+    generate_mergeline_descriptors(sweet_paths, MergeLine::SWEET)
 }
 
-pub fn salty_merge_line() -> &'static [&'static str] {
-    &[
+fn generate_mergeline_descriptors(paths: [&'static str; 11], line: MergeLine) -> Vec<MergeItemDescriptor> {
+    paths.into_iter().enumerate().map(|(i, path)| {
+        MergeItemDescriptor {
+            tier: i,
+            merge_line: line.clone(),
+            path,
+        }
+    }).collect()
+}
+
+pub fn salty_merge_line() -> Vec<MergeItemDescriptor> {
+    let salty_paths = [
         "15_burger.png",
         "32_curry.png",
         "38_friedegg.png",
@@ -44,6 +47,7 @@ pub fn salty_merge_line() -> &'static [&'static str] {
         "85_roastedchicken.png",
         "99_taco.png",
         "95_steak.png"
-    ]
+    ];
+    generate_mergeline_descriptors(salty_paths, MergeLine::SALTY)
 }
 

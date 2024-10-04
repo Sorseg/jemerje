@@ -1,12 +1,13 @@
 mod merge_lines;
 
+use crate::merge_lines::{salty_merge_line, sweet_merge_line, MergeItemDescriptor};
 use bevy::prelude::*;
 use bevy_tween::{interpolate::translation, prelude::*};
 use rand::{random, thread_rng, Rng};
 use std::f32::consts::TAU;
 use std::iter::Iterator;
 
-
+#[derive(Clone)]
 pub enum MergeLine {
     SWEET,
     SALTY,
@@ -28,14 +29,24 @@ const CELL_SIZE: i32 = SPRITE_SIZE_PX + PADDING;
 fn main() {
     let mut app = App::new();
     // define 2d array:
-    let board = vec![vec![None; BOARD_WIDTH as usize]; BOARD_HEIGHT as usize];
+    let board = vec![vec![None; BOARD_WIDTH]; BOARD_HEIGHT];
 
     app.add_plugins((DefaultPlugins, DefaultTweenPlugins))
         .insert_resource(Board(board))
+        .insert_resource(MergeLines {
+            sweet: sweet_merge_line(),
+            salty: salty_merge_line(),
+        })
         .add_systems(Startup, setup)
 
         .observe(spawn_sprites_for_merge_items)
         .run();
+}
+
+#[derive(Resource)]
+struct MergeLines {
+    sweet: Vec<MergeItemDescriptor>,
+    salty: Vec<MergeItemDescriptor>,
 }
 
 /// Board is a 2d Array of cells. Cells can be empty or contain a merge item.
@@ -58,7 +69,11 @@ struct MergableItem {
 #[derive(Component)]
 struct MainCam;
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResMut<Board>) {
+fn setup(mut commands: Commands,
+         asset_server: Res<AssetServer>,
+         mut board: ResMut<Board>,
+         merge_lines: Res<MergeLines>,
+) {
     commands.spawn((MainCam, Camera2dBundle::default()));
 
     // spawn board background
@@ -66,18 +81,34 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
         for y in 0..BOARD_HEIGHT {
             commands.spawn(SpriteBundle {
                 texture: asset_server.load("cells/empty.png"),
-                transform: Transform::from_translation(idx_to_world_coordinates(x, y)),
+                transform: Transform::from_translation(idx_to_world_coordinates(x, y).with_z(-1.0)),
                 ..default()
             });
         }
     }
 
-    board.0[2][2] = Some(commands.spawn(MergableItem {
-        x: 2,
-        y: 2,
-        tier: 0,
-        merge_line: MergeLine::SWEET,
-    }).id());
+    // spawn 5 random items
+    for i in 0..5 {
+        let merge_line = if random::<f32>() < 0.5 {
+            MergeLine::SWEET
+        } else {
+            MergeLine::SALTY
+        };
+
+        // select random position
+        let x = thread_rng().gen_range(0..BOARD_WIDTH);
+        let y = thread_rng().gen_range(0..BOARD_HEIGHT);
+
+
+        // todo: check if the cell is empty
+
+        board.0[y][x] = Some(commands.spawn(MergableItem {
+            x,
+            y,
+            tier: 0,
+            merge_line,
+        }).id());
+    }
 }
 
 fn idx_to_world_coordinates(x: usize, y: usize) -> Vec3 {
@@ -88,24 +119,17 @@ fn idx_to_world_coordinates(x: usize, y: usize) -> Vec3 {
     }
 }
 
-fn spawn_merge_item(x: usize, y: usize, commands: &mut Commands, asset_server: &AssetServer) -> Entity {
-    commands.spawn(SpriteBundle {
-        texture: asset_server.load(select_sprite_to_spawn()),
-        transform: Transform::from_xyz(
-            (x * CELL_SIZE as usize) as f32,
-            (y * CELL_SIZE as usize) as f32,
-            0f32,
-        ),
-        ..default()
-    }).id()
-}
-
-fn select_sprite_to_spawn() -> String {
-    let random_index = thread_rng().gen_range(0..ITEM_ICONS_COUNT);
-    format!(
-        "icons/{}",
-        MERGE_ITEM_ICON_PATHS.lines().nth(random_index).unwrap()
-    )
+fn select_sprite_to_spawn(item: &MergableItem, lines: &MergeLines) -> String {
+    // merge_line -> tier -> image path
+    let path = match item.merge_line {
+        MergeLine::SWEET => {
+            lines.sweet[item.tier].path.to_string()
+        }
+        MergeLine::SALTY => {
+            lines.salty[item.tier].path.to_string()
+        }
+    };
+    format!("icons/{path}")
 }
 
 fn shake_cam(mut commands: Commands, cam: Query<Entity, With<MainCam>>) {
@@ -122,28 +146,16 @@ fn shake_cam(mut commands: Commands, cam: Query<Entity, With<MainCam>>) {
     );
 }
 
-// /// synchronise LOGICAL board with the ECS systems
-// fn sync_sprites_with_board(mut board: ResMut<Board>, mut commands: Commands, asset_server: Res<AssetServer>) {
-//     // iterate over board rows
-//     for (y, line) in board.0.iter_mut().enumerate() {
-//         // iterate over board columns
-//         for (x, cell) in line.iter_mut().enumerate() {
-//             // if item in cell
-//             if let Some(item) = cell {
-//                 // if item does not have a spawned entity:
-//                 if item.entity.is_none() {
-//                     item.entity = Some(spawn_merge_item_sprite(x, y, &mut commands, &asset_server));
-//                 }
-//             }
-//         }
-//     }
-// }
-
-fn spawn_sprites_for_merge_items(e: Trigger<OnAdd, MergableItem>, item: Query<&MergableItem>, mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_sprites_for_merge_items(
+    e: Trigger<OnAdd, MergableItem>,
+    item: Query<&MergableItem>,
+    mut commands: Commands, asset_server: Res<AssetServer>,
+    merge_lines: Res<MergeLines>
+) {
     let item = item.get(e.entity()).unwrap();
     commands.entity(e.entity()).insert(
         SpriteBundle {
-            texture: asset_server.load(select_sprite_to_spawn()),
+            texture: asset_server.load(select_sprite_to_spawn(item, &merge_lines)),
             transform: Transform::from_translation(idx_to_world_coordinates(item.x, item.y)),
             ..default()
         }
