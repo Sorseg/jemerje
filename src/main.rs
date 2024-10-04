@@ -23,17 +23,14 @@ fn main() {
 #[derive(Component)]
 struct MainCam;
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((MainCam, Camera2dBundle::default()));
 
     // spawn width by height board of sprites
     for x in -BOARD_WIDTH/2..BOARD_WIDTH/2 {
         for y in -BOARD_HEIGHT/2..BOARD_HEIGHT/2 {
             commands.spawn(SpriteBundle {
-                sprite: Sprite
-                    color: GOLDENROD.into(), // todo: change to sprite
-                    ..default()
-                },
+                texture: asset_server.load(select_sprite_to_spawn()),
                 transform: Transform::from_xyz((x * CELL_SIZE) as f32,
                                                (y * CELL_SIZE) as f32,
                                                0f32),
@@ -41,6 +38,10 @@ fn setup(mut commands: Commands) {
             });
         }
     }
+}
+
+fn select_sprite_to_spawn() -> String {
+    format!("icons/{}", ICONS.lines().nth(15).unwrap())
 }
 
 fn shake_cam(mut commands: Commands, cam: Query<Entity, With<MainCam>>) {
