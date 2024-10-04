@@ -1,5 +1,13 @@
+use crate::MergeLine;
+
+pub struct MergeItemDescriptor {
+    tier: usize,
+    merge_line: MergeLine,
+    path: &'static str,
+} 
+
 pub fn sweet_merge_line() -> &'static [&'static str] {
-    &[
+    let paths = &[
         "26_chocolate.png",
         "30_chocolatecake.png",
         "34_donut.png",
@@ -11,7 +19,16 @@ pub fn sweet_merge_line() -> &'static [&'static str] {
         "50_giantgummybear.png",
         "90_strawberrycake.png",
         "79_pancakes.png",
-    ]
+    ];
+    /*
+        let descriptors: Vec<MergeItemDescriptor> = paths.iter().map(|&path| MergeItemDescriptor {
+            tier: 1, // Assuming some default tier value
+            merge_line: SWEET,
+            path: path.to_string(),
+        }).collect();
+    }
+     */
+    paths
 }
 
 pub fn salty_merge_line() -> &'static [&'static str] {
@@ -30,7 +47,3 @@ pub fn salty_merge_line() -> &'static [&'static str] {
     ]
 }
 
-pub enum MergeLine {
-    SWEET,
-    SALTY,
-}
