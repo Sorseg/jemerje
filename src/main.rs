@@ -6,6 +6,7 @@ use bevy_tween::{interpolate::translation, prelude::*};
 use rand::{random, thread_rng, Rng};
 use std::f32::consts::TAU;
 use std::iter::Iterator;
+use bevy_mod_picking::prelude::*;
 
 #[derive(Clone)]
 pub enum MergeLine {
@@ -31,7 +32,7 @@ fn main() {
     // define 2d array:
     let board = vec![vec![None; BOARD_WIDTH]; BOARD_HEIGHT];
 
-    app.add_plugins((DefaultPlugins, DefaultTweenPlugins))
+    app.add_plugins((DefaultPlugins, DefaultTweenPlugins, DefaultPickingPlugins))
         .insert_resource(Board(board))
         .insert_resource(MergeLines {
             sweet: sweet_merge_line(),
@@ -159,5 +160,10 @@ fn spawn_sprites_for_merge_items(
             transform: Transform::from_translation(idx_to_world_coordinates(item.x, item.y)),
             ..default()
         }
+    ).insert(
+        On::<Pointer<Drag>>::target_component_mut(|event, component: &mut Transform|{
+            component.translation.x += event.delta.x;
+            component.translation.y -= event.delta.y;
+        })
     );
 }
