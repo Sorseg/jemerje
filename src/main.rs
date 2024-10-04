@@ -3,6 +3,12 @@ use bevy_tween::{interpolate::translation, prelude::*};
 use rand::random;
 use std::f32::consts::TAU;
 
+static ICONS: &str = include_str!("../assets/icons.txt");
+
+const BOARD_WIDTH: u32 = 10;
+const BOARD_HEIGHT: u32 = 10;
+const SPRITE_SIZE_PX: u32 = 32; // ne ponel? screen size / board - height
+
 fn main() {
     let mut app = App::new();
     app.add_plugins((DefaultPlugins, DefaultTweenPlugins))
