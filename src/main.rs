@@ -1,9 +1,11 @@
-use bevy::{color::palettes::css::GOLDENROD, prelude::*};
+use bevy::prelude::*;
 use bevy_tween::{interpolate::translation, prelude::*};
-use rand::random;
+use rand::{random, thread_rng, Rng};
 use std::f32::consts::TAU;
+use std::iter::Iterator;
 
-static ICONS: &str = include_str!("../assets/icons.txt");
+static MERGE_ITEM_ICON_PATHS: &str = include_str!("../assets/icons.txt");
+static ITEM_ICONS_COUNT: usize = 102;
 
 const BOARD_WIDTH: i32 = 16;
 const BOARD_HEIGHT: i32 = 9;
@@ -27,8 +29,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((MainCam, Camera2dBundle::default()));
 
     // spawn width by height board of sprites
-    for x in -BOARD_WIDTH/2..BOARD_WIDTH/2 {
-        for y in -BOARD_HEIGHT/2..BOARD_HEIGHT/2 {
+    for x in -BOARD_WIDTH / 2..BOARD_WIDTH / 2 {
+        for y in -BOARD_HEIGHT / 2..BOARD_HEIGHT / 2 {
             commands.spawn(SpriteBundle {
                 texture: asset_server.load(select_sprite_to_spawn()),
                 transform: Transform::from_xyz((x * CELL_SIZE) as f32,
@@ -41,7 +43,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn select_sprite_to_spawn() -> String {
-    format!("icons/{}", ICONS.lines().nth(15).unwrap())
+    let random_index = thread_rng().gen_range(0..ITEM_ICONS_COUNT);
+    format!("icons/{}", MERGE_ITEM_ICON_PATHS.lines().nth(random_index).unwrap())
 }
 
 fn shake_cam(mut commands: Commands, cam: Query<Entity, With<MainCam>>) {
