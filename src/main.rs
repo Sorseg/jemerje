@@ -2,11 +2,11 @@ mod merge_lines;
 
 use crate::merge_lines::{salty_merge_line, sweet_merge_line, MergeItemDescriptor};
 use bevy::prelude::*;
+use bevy_mod_picking::prelude::*;
 use bevy_tween::{interpolate::translation, prelude::*};
 use rand::{random, thread_rng, Rng};
 use std::f32::consts::TAU;
 use std::iter::Iterator;
-use bevy_mod_picking::prelude::*;
 
 #[derive(Clone)]
 pub enum MergeLine {
@@ -76,6 +76,21 @@ fn setup(mut commands: Commands,
          merge_lines: Res<MergeLines>,
 ) {
     commands.spawn((MainCam, Camera2dBundle::default()));
+
+    // Load and play background music
+    let background_music = asset_server.load("apple_cider.ogg");
+    commands.spawn(AudioBundle {
+        source: background_music,
+        ..default()
+    });                          
+
+    // todo: spawn a background image
+    commands.spawn(SpriteBundle {
+        texture: asset_server.load("background.png"),
+        transform: Transform::from_translation(Vec3::ZERO.with_z(-2f32)).with_scale(Vec3::new(3f32, 3f32, 3f32)),
+
+        ..default()
+    });
 
     // spawn board background
     for x in 0..BOARD_WIDTH {
@@ -151,19 +166,30 @@ fn spawn_sprites_for_merge_items(
     e: Trigger<OnAdd, MergableItem>,
     item: Query<&MergableItem>,
     mut commands: Commands, asset_server: Res<AssetServer>,
-    merge_lines: Res<MergeLines>
+    merge_lines: Res<MergeLines>,
 ) {
     let item = item.get(e.entity()).unwrap();
-    commands.entity(e.entity()).insert(
+    commands.entity(e.entity()).insert((
         SpriteBundle {
             texture: asset_server.load(select_sprite_to_spawn(item, &merge_lines)),
             transform: Transform::from_translation(idx_to_world_coordinates(item.x, item.y)),
             ..default()
-        }
-    ).insert(
-        On::<Pointer<Drag>>::target_component_mut(|event, component: &mut Transform|{
+        },
+        On::<Pointer<Drag>>::target_component_mut(|event, component: &mut Transform| {
             component.translation.x += event.delta.x;
             component.translation.y -= event.delta.y;
+        }),
+        On::<Pointer<DragEnd>>::run(|event: Listener<Pointer<DragEnd>>, mut commands: Commands,
+                                     item: Query<&MergableItem>,
+                                     trans: Query<&Transform>| {
+            let trans = trans.get(event.target).unwrap();
+            let item = item.get(event.target).unwrap();
+            let mut entity_cmd = commands.get_entity(event.target).unwrap();
+            let target = entity_cmd.id().into_target();
+            entity_cmd.animation().insert_tween_here(Duration::from_millis(500), EaseFunction::BackOut, target.with(translation(
+                trans.translation,
+                idx_to_world_coordinates(item.x, item.y),
+            )));
         })
-    );
+    ));
 }
