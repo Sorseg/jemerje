@@ -1,0 +1,23 @@
+[package]
+name = "jemerje"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.14.2"
+bevy_mod_picking = "0.20.1"
+bevy_tween = "0.6.0"
+rand = "0.8.5"
+
+
+# Enable a small amount of optimization in the dev profile.
+[profile.dev]
+opt-level = 1
+
+# Enable a large amount of optimization in the dev profile for dependencies.
+[profile.dev.package."*"]
+opt-level = 3
+
+[features]
+dyn = ["bevy/dynamic_linking"]
+live = ["bevy/file_watcher"]
