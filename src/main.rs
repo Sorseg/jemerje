@@ -1,5 +1,6 @@
 mod merge_lines;
 
+use bevy::audio::Volume;
 use crate::merge_lines::{salty_merge_line, sweet_merge_line};
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
@@ -193,6 +194,7 @@ fn merge_or_snap_back(
     items: Query<&MergableItem>,
     trans: Query<&Transform>,
     mut board: ResMut<Board>,
+    asset_server: Res<AssetServer>,
 ) {
     let dropped_entity = event.target;
     let dropped_item = items.get(dropped_entity).unwrap();
@@ -202,6 +204,18 @@ fn merge_or_snap_back(
         if let Some(underlying_entity) = board.0[y][x] {
             if let Ok(underlying_item) = items.get(underlying_entity) {
                 if dropped_item.can_be_merged_with(underlying_item) {
+                    // Merge!
+
+                    // play merge music
+                    commands.spawn(AudioBundle {
+                        source: asset_server.load("merge.ogg"),
+                        settings: PlaybackSettings {
+                            volume: Volume::new(0.5),
+                            ..default()
+                        },
+                        ..default()
+                    });
+
                     commands.entity(underlying_entity).despawn_recursive();
                     commands.entity(dropped_entity).despawn_recursive();
                     board.0[dropped_item.y][dropped_item.x] = None;
