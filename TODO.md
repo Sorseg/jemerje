@@ -1,9 +1,7 @@
 # BUGS:
-
-  - can merge item with itself (drag outside, then return to original location)
+  - clicks don't work sometimes (BESIT!)
   - exception when the end of the merge line is reached
-  - sometimes 2 items end up in the same cell
+  - sometimes items won't merge
 
 # TODO:
-- sounds
-- merging
+- somehow introduce new items on the board 
