@@ -1,7 +1,7 @@
 mod merge_lines;
 
-use bevy::audio::Volume;
 use crate::merge_lines::{salty_merge_line, sweet_merge_line};
+use bevy::audio::Volume;
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
 use bevy_tween::{interpolate::translation, prelude::*};
@@ -12,16 +12,20 @@ fn main() {
     // define 2d array:
     let board = vec![vec![None; BOARD_WIDTH]; BOARD_HEIGHT];
 
-    app.add_plugins((DefaultPlugins, DefaultTweenPlugins, DefaultPickingPlugins))
-        .insert_resource(Board(board))
-        .insert_resource(MergeLines {
-            sweet: sweet_merge_line(),
-            salty: salty_merge_line(),
-        })
-        .insert_resource(ClearColor(Color::srgb(0.53, 0.76, 0.96)))
-        .add_systems(Startup, setup)
-        .observe(spawn_sprites_for_merge_items)
-        .run();
+    app.add_plugins((
+        DefaultPlugins.set(ImagePlugin::default_nearest()),
+        DefaultTweenPlugins,
+        DefaultPickingPlugins,
+    ))
+    .insert_resource(Board(board))
+    .insert_resource(MergeLines {
+        sweet: sweet_merge_line(),
+        salty: salty_merge_line(),
+    })
+    .insert_resource(ClearColor(Color::srgb(0.53, 0.76, 0.96)))
+    .add_systems(Startup, setup)
+    .observe(spawn_sprites_for_merge_items)
+    .run();
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -68,7 +72,9 @@ struct MergableItem {
 
 impl MergableItem {
     fn can_be_merged_with(&self, other: &Self) -> bool {
-        self.tier == other.tier && self.merge_line == other.merge_line && !(self.x == other.x && self.y == other.y)
+        self.tier == other.tier
+            && self.merge_line == other.merge_line
+            && !(self.x == other.x && self.y == other.y)
     }
 }
 
@@ -76,13 +82,22 @@ impl MergableItem {
 struct MainCam;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResMut<Board>) {
-    commands.spawn((MainCam, Camera2dBundle {
-        transform: Transform {
-            scale: Vec3::new(1.0, 1.0, 1.0), // fixme: clicking and drag coordinates break when this is != 1.0
+    let margin = SPRITE_SIZE_PX as f32 * 2.0;
+
+    commands.spawn((
+        MainCam,
+        Camera2dBundle {
+            projection: OrthographicProjection {
+                near: -100.0,
+                scaling_mode: bevy::render::camera::ScalingMode::AutoMin {
+                    min_width: BOARD_WORLD_WIDTH + margin,
+                    min_height: BOARD_WORLD_HEIGHT + margin,
+                },
+                ..default()
+            },
             ..default()
         },
-        ..default()
-    }));
+    ));
 
     // Load and play background music
     let background_music = asset_server.load("apple_cider.ogg");
@@ -95,7 +110,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
     commands.spawn(SpriteBundle {
         texture: asset_server.load("background.png"),
         transform: Transform::from_translation(Vec3::ZERO.with_z(-2f32))
-            .with_scale(Vec3::new(background_scaling, background_scaling, background_scaling)),
+            .with_scale(Vec3::splat(background_scaling)),
 
         ..default()
     });
@@ -112,7 +127,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
     }
 
     let mut spawned = 0;
-    
+
     // spawn random items
     while spawned < STARTING_ITEMS {
         let merge_line = if random::<f32>() < 0.5 {
@@ -125,11 +140,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
         let x = thread_rng().gen_range(0..BOARD_WIDTH);
         let y = thread_rng().gen_range(0..BOARD_HEIGHT);
 
-        // todo: check if the cell is empty
         if board.0[y][x].is_some() {
-            continue
+            continue;
         };
-        
+
         board.0[y][x] = Some(
             commands
                 .spawn(MergableItem {
@@ -156,7 +170,7 @@ fn world_coordinates_to_idx(c: Vec3) -> Option<(usize, usize)> {
     // + 0.5 for proper rounding when converting to usize
     let x = (c.x + BOARD_WORLD_WIDTH / 2.0) / CELL_SIZE as f32 + 0.5;
     let y = (c.y + BOARD_WORLD_HEIGHT / 2.0) / CELL_SIZE as f32 + 0.5;
-    
+
     if x < 0.0 || x >= BOARD_WIDTH as f32 {
         return None;
     }
@@ -191,12 +205,33 @@ fn spawn_sprites_for_merge_items(
             transform: Transform::from_translation(idx_to_world_coordinates(item.x, item.y)),
             ..default()
         },
-        On::<Pointer<Drag>>::target_component_mut(|event, component: &mut Transform| {
-            component.translation.x += event.delta.x;
-            component.translation.y -= event.delta.y;
-        }),
+        On::<Pointer<Drag>>::run(drag_item),
         On::<Pointer<DragEnd>>::run(merge_or_snap_back),
     ));
+}
+
+fn drag_item(
+    event: Listener<Pointer<Drag>>,
+    mut transforms: Query<&mut Transform>,
+    cam: Query<(&GlobalTransform, &Camera), With<MainCam>>,
+) {
+    let Ok((cam_transform, cam_cam)) = cam.get_single() else {
+        return;
+    };
+
+    let p1 = cam_cam.viewport_to_world_2d(cam_transform, Vec2::new(0.0, 0.0));
+    let p2 = cam_cam.viewport_to_world_2d(cam_transform, Vec2::new(1.0, 1.0));
+    let (Some(p1), Some(p2)) = (p1, p2) else {
+        warn!("Cannot compute cam scale");
+        return;
+    };
+
+    let scale = p2 - p1;
+
+    let mut transform = transforms.get_mut(event.target).unwrap();
+
+    transform.translation.x += event.delta.x * scale.x;
+    transform.translation.y += event.delta.y * scale.y;
 }
 
 fn merge_or_snap_back(
@@ -258,7 +293,6 @@ fn merge_or_snap_back(
         },
         ..default()
     });
-
 
     let mut dropped_entity_cmd = commands.get_entity(dropped_entity).unwrap();
     let target = dropped_entity.into_target();
