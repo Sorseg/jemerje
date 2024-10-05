@@ -38,6 +38,8 @@ const SPRITE_SIZE_PX: u32 = 32;
 
 const PADDING: i32 = 4;
 
+const STARTING_ITEMS: i32 = 16;
+
 const CELL_SIZE: u32 = SPRITE_SIZE_PX.saturating_add_signed(PADDING);
 const BOARD_WORLD_WIDTH: f32 = CELL_SIZE as f32 * BOARD_WIDTH as f32;
 const BOARD_WORLD_HEIGHT: f32 = CELL_SIZE as f32 * BOARD_HEIGHT as f32;
@@ -109,8 +111,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
         }
     }
 
+    let mut spawned = 0;
+    
     // spawn random items
-    for _ in 0..15 {
+    while spawned < STARTING_ITEMS {
         let merge_line = if random::<f32>() < 0.5 {
             MergeLine::SWEET
         } else {
@@ -122,7 +126,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
         let y = thread_rng().gen_range(0..BOARD_HEIGHT);
 
         // todo: check if the cell is empty
-
+        if board.0[y][x].is_some() {
+            continue
+        };
+        
         board.0[y][x] = Some(
             commands
                 .spawn(MergableItem {
@@ -133,6 +140,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
                 })
                 .id(),
         );
+        spawned += 1
     }
 }
 
