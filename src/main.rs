@@ -22,7 +22,7 @@ fn main() {
         .run();
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum MergeLine {
     SWEET,
     SALTY,
@@ -32,11 +32,13 @@ static EMPTY_ICON: &str = "cells/empty.png";
 
 const BOARD_WIDTH: usize = 16;
 const BOARD_HEIGHT: usize = 9;
-const SPRITE_SIZE_PX: i32 = 32;
+const SPRITE_SIZE_PX: u32 = 32;
 
 const PADDING: i32 = 4;
 
-const CELL_SIZE: i32 = SPRITE_SIZE_PX + PADDING;
+const CELL_SIZE: u32 = SPRITE_SIZE_PX.saturating_add_signed(PADDING);
+const BOARD_WORLD_WIDTH: f32 = CELL_SIZE as f32 * BOARD_WIDTH as f32;
+const BOARD_WORLD_HEIGHT: f32 = CELL_SIZE as f32 * BOARD_HEIGHT as f32;
 
 #[derive(Resource)]
 struct MergeLines {
@@ -52,12 +54,18 @@ struct Board(Vec<Vec<Cell>>);
 /// a piece of board, either empty or with a merge item
 type Cell = Option<Entity>;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct MergableItem {
     x: usize,
     y: usize,
     tier: usize,
     merge_line: MergeLine,
+}
+
+impl MergableItem {
+    fn can_be_merged_with(&self, other: &Self) -> bool {
+        self.tier == other.tier && self.merge_line == other.merge_line
+    }
 }
 
 #[derive(Component)]
@@ -93,8 +101,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
         }
     }
 
-    // spawn 5 random items
-    for _ in 0..5 {
+    // spawn random items
+    for _ in 0..15 {
         let merge_line = if random::<f32>() < 0.5 {
             MergeLine::SWEET
         } else {
@@ -122,18 +130,34 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
 
 fn idx_to_world_coordinates(x: usize, y: usize) -> Vec3 {
     Vec3 {
-        x: (x * CELL_SIZE as usize) as f32 - (CELL_SIZE * BOARD_WIDTH as i32) as f32 / 2.0,
-        y: (y * CELL_SIZE as usize) as f32 - (CELL_SIZE * BOARD_HEIGHT as i32) as f32 / 2.0,
+        x: (x * CELL_SIZE as usize) as f32 - BOARD_WORLD_WIDTH / 2.0,
+        y: (y * CELL_SIZE as usize) as f32 - BOARD_WORLD_HEIGHT / 2.0,
         z: 0.0,
     }
 }
 
+fn world_coordinates_to_idx(c: Vec3) -> Option<(usize, usize)> {
+    // + 0.5 for proper rounding when converting to usize
+    let x = (c.x + BOARD_WORLD_WIDTH / 2.0) / CELL_SIZE as f32 + 0.5;
+    let y = (c.y + BOARD_WORLD_HEIGHT / 2.0) / CELL_SIZE as f32 + 0.5;
+    
+    if x < 0.0 || x >= BOARD_WIDTH as f32 {
+        return None;
+    }
+    if y < 0.0 || y >= BOARD_HEIGHT as f32 {
+        return None;
+    }
+
+    Some((x as usize, y as usize))
+}
+
 fn select_sprite_to_spawn(item: &MergableItem, lines: &MergeLines) -> String {
     // merge_line -> tier -> image path
-    let path = match item.merge_line {
-        MergeLine::SWEET => lines.sweet[item.tier].path.to_string(),
-        MergeLine::SALTY => lines.salty[item.tier].path.to_string(),
+    let line = match item.merge_line {
+        MergeLine::SWEET => &lines.sweet,
+        MergeLine::SALTY => &lines.salty,
     };
+    let path = line[item.tier].path.to_string();
     format!("icons/{path}")
 }
 
@@ -155,24 +179,54 @@ fn spawn_sprites_for_merge_items(
             component.translation.x += event.delta.x;
             component.translation.y -= event.delta.y;
         }),
-        On::<Pointer<DragEnd>>::run(
-            |event: Listener<Pointer<DragEnd>>,
-             mut commands: Commands,
-             item: Query<&MergableItem>,
-             trans: Query<&Transform>| {
-                let trans = trans.get(event.target).unwrap();
-                let item = item.get(event.target).unwrap();
-                let mut entity_cmd = commands.get_entity(event.target).unwrap();
-                let target = entity_cmd.id().into_target();
-                entity_cmd.animation().insert_tween_here(
-                    Duration::from_millis(500),
-                    EaseFunction::BackOut,
-                    target.with(translation(
-                        trans.translation,
-                        idx_to_world_coordinates(item.x, item.y),
-                    )),
-                );
-            },
-        ),
+        On::<Pointer<DragEnd>>::run(merge_or_snap_back),
     ));
+}
+
+fn merge_or_snap_back(
+    event: Listener<Pointer<DragEnd>>,
+    mut commands: Commands,
+    items: Query<&MergableItem>,
+    trans: Query<&Transform>,
+    mut board: ResMut<Board>,
+) {
+    let dropped_entity = event.target;
+    let dropped_item = items.get(dropped_entity).unwrap();
+    let dropped_pos = trans.get(event.target).unwrap().translation;
+
+    if let Some((x, y)) = world_coordinates_to_idx(dropped_pos) {
+        if let Some(underlying_entity) = board.0[y][x] {
+            if let Ok(underlying_item) = items.get(underlying_entity) {
+                if dropped_item.can_be_merged_with(underlying_item) {
+                    commands.entity(underlying_entity).despawn_recursive();
+                    commands.entity(dropped_entity).despawn_recursive();
+                    board.0[dropped_item.y][dropped_item.x] = None;
+                    board.0[underlying_item.y][underlying_item.x] = Some(
+                        commands
+                            .spawn(MergableItem {
+                                tier: underlying_item.tier + 1,
+                                ..underlying_item.clone()
+                            })
+                            .id(),
+                    );
+                    return;
+                }
+            } else {
+                warn!("entity in board resource has no mergeable item");
+                board.0[y][x] = None;
+            }
+        }
+    }
+
+    // snap back
+    let mut dropped_entity_cmd = commands.get_entity(dropped_entity).unwrap();
+    let target = dropped_entity.into_target();
+    dropped_entity_cmd.animation().insert_tween_here(
+        Duration::from_millis(500),
+        EaseFunction::BackOut,
+        target.with(translation(
+            dropped_pos,
+            idx_to_world_coordinates(dropped_item.x, dropped_item.y),
+        )),
+    );
 }
