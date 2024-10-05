@@ -30,8 +30,8 @@ pub enum MergeLine {
 
 static EMPTY_ICON: &str = "cells/empty.png";
 
-const BOARD_WIDTH: usize = 16;
-const BOARD_HEIGHT: usize = 9;
+const BOARD_WIDTH: usize = 8;
+const BOARD_HEIGHT: usize = 8;
 const SPRITE_SIZE_PX: u32 = 32;
 
 const PADDING: i32 = 4;
