@@ -17,6 +17,7 @@ fn main() {
             sweet: sweet_merge_line(),
             salty: salty_merge_line(),
         })
+        .insert_resource(ClearColor(Color::srgb(0.53, 0.76, 0.96)))
         .add_systems(Startup, setup)
         .observe(spawn_sprites_for_merge_items)
         .run();
@@ -80,12 +81,15 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
         source: background_music,
         ..default()
     });
+    
+    
 
     // todo: spawn a background image
+    let background_scaling = 3f32;
     commands.spawn(SpriteBundle {
         texture: asset_server.load("background.png"),
         transform: Transform::from_translation(Vec3::ZERO.with_z(-2f32))
-            .with_scale(Vec3::new(3f32, 3f32, 3f32)),
+            .with_scale(Vec3::new(background_scaling, background_scaling, background_scaling)),
 
         ..default()
     });
