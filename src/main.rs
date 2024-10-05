@@ -68,7 +68,7 @@ struct MergableItem {
 
 impl MergableItem {
     fn can_be_merged_with(&self, other: &Self) -> bool {
-        self.tier == other.tier && self.merge_line == other.merge_line && self.x != other.x && self.y != other.y
+        self.tier == other.tier && self.merge_line == other.merge_line && !(self.x == other.x && self.y == other.y)
     }
 }
 
