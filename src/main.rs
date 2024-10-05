@@ -1,6 +1,6 @@
 mod merge_lines;
 
-use crate::merge_lines::{salty_merge_line, sweet_merge_line, MergeItemDescriptor};
+use crate::merge_lines::{salty_merge_line, sweet_merge_line};
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
 use bevy_tween::{interpolate::translation, prelude::*};
@@ -42,8 +42,8 @@ const BOARD_WORLD_HEIGHT: f32 = CELL_SIZE as f32 * BOARD_HEIGHT as f32;
 
 #[derive(Resource)]
 struct MergeLines {
-    sweet: Vec<MergeItemDescriptor>,
-    salty: Vec<MergeItemDescriptor>,
+    sweet: Vec<&'static str>,
+    salty: Vec<&'static str>,
 }
 
 /// Board is a 2d Array of cells. Cells can be empty or contain a merge item.
@@ -157,7 +157,7 @@ fn select_sprite_to_spawn(item: &MergableItem, lines: &MergeLines) -> String {
         MergeLine::SWEET => &lines.sweet,
         MergeLine::SALTY => &lines.salty,
     };
-    let path = line[item.tier].path.to_string();
+    let path = line[item.tier].to_string();
     format!("icons/{path}")
 }
 
