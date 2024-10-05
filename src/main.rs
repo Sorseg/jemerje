@@ -66,7 +66,7 @@ struct MergableItem {
 
 impl MergableItem {
     fn can_be_merged_with(&self, other: &Self) -> bool {
-        self.tier == other.tier && self.merge_line == other.merge_line
+        self.tier == other.tier && self.merge_line == other.merge_line && self.x != other.x && self.y != other.y
     }
 }
 
@@ -237,6 +237,18 @@ fn merge_or_snap_back(
     }
 
     // snap back
+
+    // play merge music
+    commands.spawn(AudioBundle {
+        source: asset_server.load("woosh.ogg"),
+        settings: PlaybackSettings {
+            volume: Volume::new(0.5),
+            ..default()
+        },
+        ..default()
+    });
+
+
     let mut dropped_entity_cmd = commands.get_entity(dropped_entity).unwrap();
     let target = dropped_entity.into_target();
     dropped_entity_cmd.animation().insert_tween_here(
