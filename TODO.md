@@ -4,3 +4,4 @@
 
 # TODO:
 - somehow introduce new items on the board 
+- allow moving dragged item to the empty cell
