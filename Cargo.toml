@@ -14,9 +14,12 @@ rand = "0.8.5"
 [profile.dev]
 opt-level = 1
 
-# Reduces the binary size
 [profile.release]
+# Reduces the binary size
+lto = 'fat'
+codegen-units = 1
 panic = 'abort'
+strip = true
 
 # Enable a large amount of optimization in the dev profile for dependencies.
 [profile.dev.package."*"]
