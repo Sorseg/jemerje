@@ -74,7 +74,13 @@ impl MergableItem {
 struct MainCam;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResMut<Board>) {
-    commands.spawn((MainCam, Camera2dBundle::default()));
+    commands.spawn((MainCam, Camera2dBundle {
+        transform: Transform {
+            scale: Vec3::new(1.0, 1.0, 1.0), // fixme: clicking and drag coordinates break when this is != 1.0
+            ..default()
+        },
+        ..default()
+    }));
 
     // Load and play background music
     let background_music = asset_server.load("apple_cider.ogg");
@@ -82,10 +88,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut board: ResM
         source: background_music,
         ..default()
     });
-    
-    
 
-    // todo: spawn a background image
     let background_scaling = 3f32;
     commands.spawn(SpriteBundle {
         texture: asset_server.load("background.png"),
